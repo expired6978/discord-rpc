@@ -13,7 +13,12 @@ int GetProcessId()
 }
 
 struct BaseConnectionWin : public BaseConnection {
-    HANDLE pipe{INVALID_HANDLE_VALUE};
+	BaseConnectionWin()
+	{
+		pipe = INVALID_HANDLE_VALUE;
+	}
+
+    HANDLE pipe;
 };
 
 static BaseConnectionWin Connection;
@@ -32,7 +37,7 @@ static BaseConnectionWin Connection;
 
 bool BaseConnection::Open()
 {
-    wchar_t pipeName[]{L"\\\\?\\pipe\\discord-ipc-0"};
+    wchar_t pipeName[] = L"\\\\?\\pipe\\discord-ipc-0";
     const size_t pipeDigit = sizeof(pipeName) / sizeof(wchar_t) - 2;
     pipeName[pipeDigit] = L'0';
     auto self = reinterpret_cast<BaseConnectionWin*>(this);

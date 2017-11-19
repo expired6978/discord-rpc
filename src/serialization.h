@@ -105,7 +105,7 @@ public:
 // wonder why this isn't a thing already, maybe I missed it
 class DirectStringBuffer {
 public:
-    using Ch = char;
+	typedef char Ch;
     char* buffer_;
     char* end_;
     char* current_;
@@ -127,14 +127,15 @@ public:
     size_t GetSize() const { return (size_t)(current_ - buffer_); }
 };
 
-using MallocAllocator = rapidjson::CrtAllocator;
-using PoolAllocator = rapidjson::MemoryPoolAllocator<MallocAllocator>;
-using UTF8 = rapidjson::UTF8<char>;
+typedef rapidjson::CrtAllocator MallocAllocator;
+typedef rapidjson::MemoryPoolAllocator<MallocAllocator> PoolAllocator;
+
 // Writer appears to need about 16 bytes per nested object level (with 64bit size_t)
-using StackAllocator = FixedLinearAllocator<2048>;
-constexpr size_t WriterNestingLevels = 2048 / (2 * sizeof(size_t));
-using JsonWriterBase =
-  rapidjson::Writer<DirectStringBuffer, UTF8, UTF8, StackAllocator, rapidjson::kWriteNoFlags>;
+typedef FixedLinearAllocator<2048> StackAllocator;
+
+static const size_t WriterNestingLevels = 2048 / (2 * sizeof(size_t));
+typedef rapidjson::Writer<DirectStringBuffer, rapidjson::UTF8<>, rapidjson::UTF8<>, StackAllocator, rapidjson::kWriteNoFlags> JsonWriterBase;
+
 class JsonWriter : public JsonWriterBase {
 public:
     DirectStringBuffer stringBuffer_;
@@ -150,7 +151,7 @@ public:
     size_t Size() const { return stringBuffer_.GetSize(); }
 };
 
-using JsonDocumentBase = rapidjson::GenericDocument<UTF8, PoolAllocator, StackAllocator>;
+typedef rapidjson::GenericDocument<rapidjson::UTF8<>, PoolAllocator, StackAllocator> JsonDocumentBase;
 class JsonDocument : public JsonDocumentBase {
 public:
     static const int kDefaultChunkCapacity = 32 * 1024;
@@ -171,7 +172,7 @@ public:
     }
 };
 
-using JsonValue = rapidjson::GenericValue<UTF8, PoolAllocator>;
+typedef rapidjson::GenericValue<rapidjson::UTF8<>, PoolAllocator> JsonValue;
 
 inline JsonValue* GetObjMember(JsonValue* obj, const char* name)
 {

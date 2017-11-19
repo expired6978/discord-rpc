@@ -15,9 +15,9 @@
 #include <thread>
 #endif
 
-constexpr size_t MaxMessageSize{16 * 1024};
-constexpr size_t MessageQueueSize{8};
-constexpr size_t JoinQueueSize{8};
+static const size_t MaxMessageSize = 16 * 1024;
+static const size_t MessageQueueSize = 8;
+static const size_t JoinQueueSize = 8;
 
 struct QueuedMessage {
     size_t length;
@@ -46,21 +46,21 @@ struct JoinRequest {
     // Rounded way up because I'm paranoid about games breaking from future changes in these sizes
 };
 
-static RpcConnection* Connection{nullptr};
-static DiscordEventHandlers Handlers{};
-static std::atomic_bool WasJustConnected{false};
-static std::atomic_bool WasJustDisconnected{false};
-static std::atomic_bool GotErrorMessage{false};
-static std::atomic_bool WasJoinGame{false};
-static std::atomic_bool WasSpectateGame{false};
+static RpcConnection* Connection = nullptr;
+static DiscordEventHandlers Handlers;
+static std::atomic_bool WasJustConnected;
+static std::atomic_bool WasJustDisconnected;
+static std::atomic_bool GotErrorMessage;
+static std::atomic_bool WasJoinGame;
+static std::atomic_bool WasSpectateGame;
 static char JoinGameSecret[256];
 static char SpectateGameSecret[256];
-static int LastErrorCode{0};
+static int LastErrorCode = 0;
 static char LastErrorMessage[256];
-static int LastDisconnectErrorCode{0};
+static int LastDisconnectErrorCode = 0;
 static char LastDisconnectErrorMessage[256];
 static std::mutex PresenceMutex;
-static QueuedMessage QueuedPresence{};
+static QueuedMessage QueuedPresence;
 static MsgQueue<QueuedMessage, MessageQueueSize> SendQueue;
 static MsgQueue<JoinRequest, JoinQueueSize> JoinAskQueue;
 
@@ -68,11 +68,11 @@ static MsgQueue<JoinRequest, JoinQueueSize> JoinAskQueue;
 // backoff from 0.5 seconds to 1 minute
 static Backoff ReconnectTimeMs(500, 60 * 1000);
 static auto NextConnect = std::chrono::system_clock::now();
-static int Pid{0};
-static int Nonce{1};
+static int Pid = 0;
+static int Nonce = 1;
 
 #ifndef DISCORD_DISABLE_IO_THREAD
-static std::atomic_bool KeepRunning{true};
+static std::atomic_bool KeepRunning;
 static std::mutex WaitForIOMutex;
 static std::condition_variable WaitForIOActivity;
 static std::thread IoThread;
@@ -80,8 +80,7 @@ static std::thread IoThread;
 
 static void UpdateReconnectTime()
 {
-    NextConnect = std::chrono::system_clock::now() +
-      std::chrono::duration<int64_t, std::milli>{ReconnectTimeMs.nextDelay()};
+    NextConnect = std::chrono::system_clock::now() + std::chrono::duration<int64_t, std::milli>(ReconnectTimeMs.nextDelay());
 }
 
 #ifdef DISCORD_DISABLE_IO_THREAD
@@ -192,7 +191,7 @@ static void Discord_UpdateConnection(void)
 #ifndef DISCORD_DISABLE_IO_THREAD
 static void DiscordRpcIo(void)
 {
-    const std::chrono::duration<int64_t, std::milli> maxWait{500LL};
+    const std::chrono::duration<int64_t, std::milli> maxWait(500LL);
 
     while (KeepRunning.load()) {
         Discord_UpdateConnection();
@@ -228,6 +227,13 @@ extern "C" DISCORD_EXPORT void Discord_Initialize(const char* applicationId,
                                                   int autoRegister,
                                                   const char* optionalSteamId)
 {
+	WasJustConnected = false;
+	WasJustDisconnected = false;
+	GotErrorMessage = false;
+	WasJoinGame = false;
+	WasSpectateGame = false;
+	KeepRunning = true;
+
     if (autoRegister) {
         if (optionalSteamId && optionalSteamId[0]) {
             Discord_RegisterSteamGame(applicationId, optionalSteamId);
@@ -242,9 +248,14 @@ extern "C" DISCORD_EXPORT void Discord_Initialize(const char* applicationId,
     if (handlers) {
         Handlers = *handlers;
     }
-    else {
-        Handlers = {};
-    }
+	else {
+		Handlers.disconnected = nullptr;
+		Handlers.errored = nullptr;
+		Handlers.joinGame = nullptr;
+		Handlers.joinRequest = nullptr;
+		Handlers.ready = nullptr;
+		Handlers.spectateGame = nullptr;
+	}
 
     if (Connection) {
         return;
@@ -287,7 +298,12 @@ extern "C" DISCORD_EXPORT void Discord_Shutdown()
     }
     Connection->onConnect = nullptr;
     Connection->onDisconnect = nullptr;
-    Handlers = {};
+    Handlers.disconnected = nullptr;
+	Handlers.errored = nullptr;
+	Handlers.joinGame = nullptr;
+	Handlers.joinRequest = nullptr;
+	Handlers.ready = nullptr;
+	Handlers.spectateGame = nullptr;
 #ifndef DISCORD_DISABLE_IO_THREAD
     KeepRunning.exchange(false);
     SignalIOActivity();
@@ -366,7 +382,10 @@ extern "C" DISCORD_EXPORT void Discord_RunCallbacks()
     while (JoinAskQueue.HavePendingSends()) {
         auto req = JoinAskQueue.GetNextSendMessage();
         if (Handlers.joinRequest) {
-            DiscordJoinRequest djr{req->userId, req->username, req->avatar};
+            DiscordJoinRequest djr;
+			djr.userId = req->userId;
+			djr.username = req->username;
+			djr.avatar = req->avatar;
             Handlers.joinRequest(&djr);
         }
         JoinAskQueue.CommitSend();

@@ -7,13 +7,18 @@
 
 template <typename ElementType, size_t QueueSize>
 class MsgQueue {
-    ElementType queue_[QueueSize]{};
-    std::atomic_uint nextAdd_{0};
-    std::atomic_uint nextSend_{0};
-    std::atomic_uint pendingSends_{0};
+    ElementType queue_[QueueSize];
+    std::atomic_uint nextAdd_;
+    std::atomic_uint nextSend_;
+    std::atomic_uint pendingSends_;
 
 public:
-    MsgQueue() {}
+    MsgQueue()
+	{
+		nextAdd_ = 0;
+		nextSend_ = 0;
+		pendingSends_ = 0;
+	}
 
     ElementType* GetNextAddMessage()
     {

@@ -5,9 +5,20 @@
 
 // I took this from the buffer size libuv uses for named pipes; I suspect ours would usually be much
 // smaller.
-constexpr size_t MaxRpcFrameSize = 64 * 1024;
+static const size_t MaxRpcFrameSize = 64 * 1024;
 
 struct RpcConnection {
+	RpcConnection()
+	{
+		connection = nullptr;
+		state = State::Disconnected;
+		onConnect = nullptr;
+		onDisconnect = nullptr;
+		appId[0] = 0;
+		lastErrorCode = 0;
+		lastErrorMessage[0] = 0;
+	}
+
     enum class ErrorCode : int {
         Success = 0,
         PipeClosed = 1,
@@ -38,13 +49,13 @@ struct RpcConnection {
         Connected,
     };
 
-    BaseConnection* connection{nullptr};
-    State state{State::Disconnected};
-    void (*onConnect)(){nullptr};
-    void (*onDisconnect)(int errorCode, const char* message){nullptr};
-    char appId[64]{};
-    int lastErrorCode{0};
-    char lastErrorMessage[256]{};
+    BaseConnection* connection;
+    State state;
+    void (*onConnect)();
+    void (*onDisconnect)(int errorCode, const char* message);
+    char appId[64];
+    int lastErrorCode;
+    char lastErrorMessage[256];
     RpcConnection::MessageFrame sendFrame;
 
     static RpcConnection* Create(const char* applicationId);
